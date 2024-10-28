@@ -1,10 +1,9 @@
-mod mem_table;
 mod flush;
+mod mem_table;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
-
 
 // TODO what is the type of value?
 // pub fn put(key: String, value: u32) {
@@ -23,7 +22,6 @@ pub fn add(left: u64, right: u64) -> u64 {
 //     todo!()
 // }
 
-
 /*
 main() {
 let mem_table = mem_table();
@@ -33,10 +31,6 @@ mem_table.write()
 flush(mem_table);
 }
  */
-
-
-
-
 
 #[cfg(test)]
 mod tests {

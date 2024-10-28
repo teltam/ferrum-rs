@@ -1,13 +1,14 @@
+use crate::mem_table::{MemTable, MemTableEntry};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::fmt;
 use std::fs::File;
 use std::io::Write;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use crate::mem_table::{MemTable, MemTableEntry};
-
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct Index {
+    keys: Vec<String>,
+    // TODO offset
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -51,10 +52,9 @@ struct StaticSortedTable {
 // TODO Flush worker file, could be a new thread?
 // TODO what happens if the json, file create, file write fails?
 pub fn flush(mem_table: &MemTable) -> std::io::Result<MemTable> {
-
     let block_size = 4;
 
-    let mut data_blocks: Vec<DataBlock> = vec!();
+    let mut data_blocks: Vec<DataBlock> = vec![];
     for (i, entry) in mem_table.data.iter().enumerate() {
         if i % block_size == 0 {
             data_blocks.push(DataBlock::new(block_size))
@@ -62,15 +62,21 @@ pub fn flush(mem_table: &MemTable) -> std::io::Result<MemTable> {
 
         let db_len = data_blocks.len();
 
-        data_blocks[db_len-1].block.push(entry.clone())
+        data_blocks[db_len - 1].block.push(entry.clone())
     }
+
+    let mut index_keys: Vec<String> = vec![];
 
     for data_block in &mut data_blocks {
         data_block.hash = data_block.hash();
+
+        let _block_size = data_block.block.len();
+
+        index_keys.push(data_block.block[_block_size - 1].key.clone())
     }
 
     let sst = StaticSortedTable {
-        index: Index {}, // TODO
+        index: Index { keys: index_keys },
         data_blocks,
         block_size,
     };
@@ -90,12 +96,11 @@ fn _load_from_file() -> std::io::Result<StaticSortedTable> {
     Ok(sst)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::ptr::addr_of;
     use crate::flush::{_load_from_file, flush};
     use crate::mem_table::{MemTable, MemTableEntry};
+    use std::ptr::addr_of;
 
     #[test]
     fn test_flush() {
@@ -107,8 +112,10 @@ mod tests {
         });
 
         let new_mem_table = match flush(&mem_table) {
-            Ok(m) => { m },
-            Err(e) => { panic!("{:?}", e); }
+            Ok(m) => m,
+            Err(e) => {
+                panic!("{:?}", e);
+            }
         };
 
         assert_ne!(addr_of!(mem_table), addr_of!(new_mem_table));
@@ -123,22 +130,38 @@ mod tests {
             mem_table.data.push(MemTableEntry {
                 e_type: "PUT".to_string(),
                 key: i.to_string(),
-                value: i+10,
+                value: i + 10,
             });
         }
 
         match flush(&mem_table) {
-            Ok(m) => { m },
-            Err(e) => { panic!("{:?}", e); }
+            Ok(m) => m,
+            Err(e) => {
+                panic!("{:?}", e);
+            }
         };
 
-        let f_sst= _load_from_file().unwrap();
+        let f_sst = _load_from_file().unwrap();
 
-        // TODO index
-
-        assert_eq!(f_sst.data_blocks.len(), 100/4);
+        assert_eq!(f_sst.data_blocks.len(), 100 / 4);
         assert_eq!(f_sst.block_size, 4);
 
-        println!("{}", f_sst.data_blocks[0]);
+        let mut f_sst_data: Vec<&MemTableEntry> = vec![];
+        for data_block in &f_sst.data_blocks {
+            for entry in &data_block.block {
+                f_sst_data.push(&entry)
+            }
+        }
+
+        for (i, j) in mem_table.data.iter().zip(f_sst_data.iter()) {
+            assert_eq!(*i, **j);
+        }
+
+        for (i, data_block) in f_sst.data_blocks.iter().enumerate() {
+            assert_eq!(
+                data_block.block[f_sst.block_size - 1].key,
+                f_sst.index.keys[i]
+            )
+        }
     }
 }

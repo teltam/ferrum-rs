@@ -1,6 +1,6 @@
-use std::fmt;
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MemTableEntry {
@@ -11,7 +11,11 @@ pub struct MemTableEntry {
 
 impl fmt::Display for MemTableEntry {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, " e_typr {} key {} value {}", self.e_type, self.key, self.value)
+        write!(
+            f,
+            " e_typr {} key {} value {}",
+            self.e_type, self.key, self.value
+        )
     }
 }
 
@@ -82,7 +86,6 @@ impl MemTable {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::mem_table::{MemTable, MemTableEntry, MemTableWALEntry};
@@ -96,7 +99,7 @@ mod tests {
             let mem_table_entry = MemTableEntry {
                 e_type: "PUT".to_string(),
                 key: i.to_string(),
-                value: i+5,
+                value: i + 5,
             };
 
             data.push(mem_table_entry.clone());
@@ -118,9 +121,12 @@ mod tests {
         assert_eq!(mem_table.get("21".to_string()).unwrap(), 26);
         assert_eq!(mem_table.get("24".to_string()).unwrap(), 29);
 
-        let keys: Vec<&String> = mem_table.data.iter().map(|i| { &i.key }).collect();
+        let keys: Vec<&String> = mem_table.data.iter().map(|i| &i.key).collect();
 
-        assert_eq!(keys, ["0", "1", "2", "21", "24", "3", "4", "5", "6", "7", "8", "9"]);
+        assert_eq!(
+            keys,
+            ["0", "1", "2", "21", "24", "3", "4", "5", "6", "7", "8", "9"]
+        );
 
         // WAL
         assert_eq!(
